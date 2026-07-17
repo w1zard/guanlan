@@ -88,7 +88,7 @@ npm run db:generate
 
 ### 预置 RSS 目录
 
-预置目录覆盖公开提供 RSS 的代表性中文科技媒体、国际科技媒体、开发者社区、公司技术博客、综合新闻与科学媒体，包括：少数派、Solidot、36氪、阮一峰、FT中文网、IT之家、小众软件、V2EX、Ars Technica、WIRED、The Verge、TechCrunch、MIT Technology Review、Engadget、Hacker News、Slashdot、LWN、Daring Fireball、IEEE Spectrum、Cloudflare Blog、GitHub Blog、Mozilla Hacks、Google Blog、Microsoft Blog、Apple Newsroom、OpenAI News、BBC Technology、The Guardian Technology、New York Times Technology、NPR Technology、Al Jazeera、NASA 和 Nature。
+当前内置 76 个 RSS 源，覆盖公开提供 RSS 的代表性中文科技媒体、国际科技媒体、开发者社区、公司技术博客、综合新闻与科学媒体。除少数派、Solidot、IT之家、爱范儿、开源中国、InfoQ 中文等中文来源外，也包括 Ars Technica、WIRED、The Verge、TechCrunch、MIT Technology Review、Hacker News、Stack Overflow、Cloudflare、GitHub、OpenAI、BBC、The Guardian、CNN、DW、France 24、NPR、Nature、Scientific American、Quanta、NASA 与 JPL 等来源。
 
 这是一份可维护的精选目录，不声称覆盖互联网上“所有”媒体。RSS 地址可能被发布方调整；失效来源应在后续抓取任务中标记并更新。应用每次初始化会以“不覆盖用户数据”的方式补齐新增预置源。
 
@@ -200,6 +200,12 @@ npm run build        # 生成 Worker 兼容构建
 npm run lint         # 静态检查
 npm run db:generate  # 生成 D1/Drizzle 迁移
 ```
+## 捐助
+
+如果这个项目对你有用的话，请我喝罐可乐吧。
+<br>
+<img width=30% height=30% src="请我喝可乐.jpg" alt="qrcode">
+<br>
 
 ## 贡献
 

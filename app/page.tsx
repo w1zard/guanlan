@@ -184,7 +184,7 @@ export default function Home() {
           </nav>
           <div className="feed-heading"><span>{t.feeds}</span><button aria-label={t.feeds}>•••</button></div>
           <nav className="feed-list" aria-label="订阅源">
-            {feeds.map((feed) => <button key={feed.id} className={section === feed.id ? "active" : ""} onClick={() => setSection(feed.id)}><i style={{ background: feed.color }}>{feed.name.slice(0, 1)}</i><span>{feedName(feed)}</span><b>{articles.filter((a) => a.feedId === feed.id && a.unread).length || ""}</b></button>)}
+            {feeds.map((feed) => <button key={feed.id} title={feedName(feed)} className={section === feed.id ? "active" : ""} onClick={() => setSection(feed.id)}><i style={{ background: feed.color }}>{feed.name.slice(0, 1)}</i><span>{feedName(feed)}</span><b>{articles.filter((a) => a.feedId === feed.id && a.unread).length || ""}</b></button>)}
           </nav>
           <div className="sidebar-footer"><span>{t.todayRead}</span><strong>24 <small>{t.pieces}</small></strong><div><i style={{ width: "68%" }} /></div></div>
         </aside>

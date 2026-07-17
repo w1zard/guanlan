@@ -32,7 +32,9 @@ button { color:inherit; }
 .feed-heading button { border:0; background:transparent; color:#9da19c; }
 .feed-list { overflow:auto; }
 .feed-list button i { width:23px; height:23px; display:grid; place-items:center; border-radius:5px; color:#fff; font-size:10px; font-style:normal; flex:none; }
-.feed-list button span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.feed-list button { height:auto!important; min-height:37px; padding-top:7px!important; padding-bottom:7px!important; align-items:flex-start!important; }
+.feed-list button span { width:auto!important; flex:1; overflow:visible; text-overflow:clip; white-space:normal; line-height:1.35; }
+.feed-list button b { padding-top:3px; flex:none; }
 .sidebar-footer { margin-top:auto; border-top:1px solid #dedfd8; padding:16px 9px 3px; color:#858b85; font-size:11px; }
 .sidebar-footer strong { float:right; color:var(--jade); font-family:Georgia,serif; font-size:18px; }
 .sidebar-footer small { font-family:inherit; font-weight:400; }
