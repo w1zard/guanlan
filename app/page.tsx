@@ -261,7 +261,7 @@ export default function Home() {
 
         <section className="reader">
           {active ? <>
-            <div className="reader-actions"><button aria-label="返回列表">‹</button><div><button onClick={() => toggleStar(active.id)} className={active.starred ? "starred" : ""} aria-label="星标">{active.starred ? "★" : "☆"}</button><button aria-label="稍后读">♧</button><button aria-label="分享">↗</button><button aria-label="更多">•••</button></div></div>
+            <div className="reader-actions"><button aria-label="返回列表">‹</button><div><button onClick={() => toggleStar(active.id)} className={active.starred ? "starred" : ""} aria-label="星标">{active.starred ? "★" : "☆"}</button></div></div>
             <article className="reading-pane">
               <div className="reading-source"><div className="source-icon">{active.accent}</div><div><strong>{localized(active).source}</strong><span>{localized(active).time} · {t.readTime}</span></div><button>{t.subscribed}</button></div>
               <h1>{localized(active).title}</h1>
