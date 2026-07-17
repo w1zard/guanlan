@@ -29,6 +29,11 @@
 
 Vinext 为项目提供基于 Vite 的 React Server Components 和 Worker 构建能力。业务界面保持为标准 React 组件，便于后续通过 Capacitor 或 React Native 共享类型、API 客户端和领域逻辑。
 
+<details>
+<summary>📸 截图预览（点击展开）</summary>
+<img width=30% height=30% src="screenshot/ui1.png" alt="ui1">
+</details>
+
 ## 快速开始
 
 ### 环境要求
