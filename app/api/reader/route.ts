@@ -1,6 +1,6 @@
-import { asc, count } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { ensureDbSchema, getDb } from "../../../db";
-import { articles, feeds } from "../../../db/schema";
+import { appMeta, articles, feeds } from "../../../db/schema";
 import { requirePasswordSession } from "../../lib/password-auth";
 
 const seedFeeds = [
@@ -88,10 +88,22 @@ const seedArticles = [
   { feedId:"36kr",source:"36氪",title:"智能硬件正在迎来新的小型化浪潮",excerpt:"从可穿戴设备到环境计算，更轻的交互方式正在进入日常生活。",content:"这一轮硬件创新不再一味追求更大的屏幕。传感器、低功耗芯片和端侧模型的进步，让设备可以更自然地藏进日常物品中。",time:"1 小时前",unread:true,starred:false,tag:"商业",accent:"氪",enSource:"36Kr",enTitle:"Smart hardware enters a new wave of miniaturization",enExcerpt:"From wearables to ambient computing, lighter interactions are moving into daily life.",enContent:"Better sensors, low-power chips, and on-device models allow technology to disappear naturally into everyday objects.",enTime:"1 hour ago",enTag:"Business" },
 ];
 
+const FEED_CATALOG_VERSION = "2026-07-17.3";
+const FEED_INSERT_BATCH_SIZE = 10;
+
 async function ensureSeeded() {
   await ensureDbSchema();
   const db = getDb();
-  await db.insert(feeds).values(seedFeeds).onConflictDoNothing();
+  const [catalogState] = await db.select().from(appMeta).where(eq(appMeta.key, "feed_catalog_version")).limit(1);
+  if (catalogState?.value !== FEED_CATALOG_VERSION) {
+    for (let index = 0; index < seedFeeds.length; index += FEED_INSERT_BATCH_SIZE) {
+      await db.insert(feeds).values(seedFeeds.slice(index, index + FEED_INSERT_BATCH_SIZE)).onConflictDoNothing();
+    }
+    await db.insert(appMeta).values({ key:"feed_catalog_version", value:FEED_CATALOG_VERSION }).onConflictDoUpdate({
+      target:appMeta.key,
+      set:{ value:FEED_CATALOG_VERSION, updatedAt:new Date().toISOString() },
+    });
+  }
   const [result] = await db.select({ value: count() }).from(articles);
   if (result.value === 0) {
     await db.insert(articles).values(seedArticles);
@@ -109,6 +121,8 @@ export async function GET(request: Request) {
       db.select().from(articles).orderBy(asc(articles.id)),
     ]);
     return Response.json({
+      catalogVersion: FEED_CATALOG_VERSION,
+      feedCount: feedRows.length,
       feeds: feedRows,
       articles: articleRows.map((row) => ({
         id:row.id, feedId:row.feedId, source:row.source, title:row.title, excerpt:row.excerpt, content:row.content,

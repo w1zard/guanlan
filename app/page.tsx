@@ -74,12 +74,12 @@ export default function Home() {
   useEffect(() => {
     if (!authenticated) return;
     fetch("/api/reader").then(async (response) => {
-      if (!response.ok) return;
+      if (!response.ok) throw new Error(`reader api ${response.status}`);
       const data = await response.json() as { feeds: Array<Feed & { url?: string }>; articles: Article[] };
       if (data.feeds?.length) setFeeds(data.feeds.map((feed) => ({ ...feed, unread:0 })));
       if (data.articles?.length) setArticles(data.articles);
-    }).catch(() => { /* keep the in-memory offline demo */ });
-  }, [authenticated]);
+    }).catch(() => setNotice(language === "zh" ? "D1 同步失败，当前显示离线演示数据" : "D1 sync failed; showing offline demo data"));
+  }, [authenticated, language]);
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem("guanlan-theme", theme); }, [theme]);
   useEffect(() => { document.documentElement.lang = language === "zh" ? "zh-CN" : "en"; localStorage.setItem("guanlan-language", language); }, [language]);
 

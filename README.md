@@ -90,7 +90,7 @@ npm run db:generate
 
 当前内置 76 个 RSS 源，覆盖公开提供 RSS 的代表性中文科技媒体、国际科技媒体、开发者社区、公司技术博客、综合新闻与科学媒体。除少数派、Solidot、IT之家、爱范儿、开源中国、InfoQ 中文等中文来源外，也包括 Ars Technica、WIRED、The Verge、TechCrunch、MIT Technology Review、Hacker News、Stack Overflow、Cloudflare、GitHub、OpenAI、BBC、The Guardian、CNN、DW、France 24、NPR、Nature、Scientific American、Quanta、NASA 与 JPL 等来源。
 
-这是一份可维护的精选目录，不声称覆盖互联网上“所有”媒体。RSS 地址可能被发布方调整；失效来源应在后续抓取任务中标记并更新。应用每次初始化会以“不覆盖用户数据”的方式补齐新增预置源。
+这是一份可维护的精选目录，不声称覆盖互联网上“所有”媒体。RSS 地址可能被发布方调整；失效来源应在后续抓取任务中标记并更新。目录使用 D1 中的 `feed_catalog_version` 记录版本：部署包含新版目录的代码后，首次加载会按 10 个一组分批补齐新增源，成功后更新版本号；已存在的来源和用户自行添加的订阅不会被覆盖。
 
 ## API
 

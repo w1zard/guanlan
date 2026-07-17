@@ -43,5 +43,10 @@ export async function ensureDbSchema() {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
     env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS feeds_url_unique ON feeds (url)"),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
   ]);
 }
