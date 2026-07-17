@@ -1,6 +1,7 @@
 import { asc, count } from "drizzle-orm";
-import { getDb } from "../../../db";
+import { ensureDbSchema, getDb } from "../../../db";
 import { articles, feeds } from "../../../db/schema";
+import { requirePasswordSession } from "../../lib/password-auth";
 
 const seedFeeds = [
   { id:"sspai", name:"少数派", url:"https://sspai.com/feed", color:"#d9534f" },
@@ -8,6 +9,34 @@ const seedFeeds = [
   { id:"36kr", name:"36氪", url:"https://36kr.com/feed", color:"#c6892f" },
   { id:"ruanyf", name:"阮一峰的网络日志", url:"https://www.ruanyifeng.com/blog/atom.xml", color:"#2f7d52" },
   { id:"ft", name:"FT中文网", url:"https://www.ftchinese.com/rss/feed", color:"#9b6448" },
+  { id:"ithome", name:"IT之家", url:"https://www.ithome.com/rss/", color:"#cf3f36" },
+  { id:"appinn", name:"小众软件", url:"https://www.appinn.com/feed/", color:"#3688c8" },
+  { id:"v2ex", name:"V2EX", url:"https://www.v2ex.com/index.xml", color:"#334155" },
+  { id:"ars", name:"Ars Technica", url:"https://feeds.arstechnica.com/arstechnica/index", color:"#f26c21" },
+  { id:"wired", name:"WIRED", url:"https://www.wired.com/feed/rss", color:"#111111" },
+  { id:"verge", name:"The Verge", url:"https://www.theverge.com/rss/index.xml", color:"#e22b8a" },
+  { id:"techcrunch", name:"TechCrunch", url:"https://techcrunch.com/feed/", color:"#0a9e6e" },
+  { id:"mit-tech", name:"MIT Technology Review", url:"https://www.technologyreview.com/feed/", color:"#d3262a" },
+  { id:"engadget", name:"Engadget", url:"https://www.engadget.com/rss.xml", color:"#5b36f2" },
+  { id:"hacker-news", name:"Hacker News", url:"https://hnrss.org/frontpage", color:"#ff6600" },
+  { id:"slashdot", name:"Slashdot", url:"https://rss.slashdot.org/Slashdot/slashdotMain", color:"#14564c" },
+  { id:"lwn", name:"LWN.net", url:"https://lwn.net/headlines/rss", color:"#8b4513" },
+  { id:"daring-fireball", name:"Daring Fireball", url:"https://daringfireball.net/feeds/main", color:"#4b5563" },
+  { id:"ieee", name:"IEEE Spectrum", url:"https://spectrum.ieee.org/feeds/feed.rss", color:"#00629b" },
+  { id:"cloudflare", name:"Cloudflare Blog", url:"https://blog.cloudflare.com/rss/", color:"#f48120" },
+  { id:"github", name:"The GitHub Blog", url:"https://github.blog/feed/", color:"#24292f" },
+  { id:"mozilla", name:"Mozilla Hacks", url:"https://hacks.mozilla.org/feed/", color:"#7542e5" },
+  { id:"google", name:"Google Blog", url:"https://blog.google/rss/", color:"#4285f4" },
+  { id:"microsoft", name:"Microsoft Blog", url:"https://blogs.microsoft.com/feed/", color:"#00a4ef" },
+  { id:"apple", name:"Apple Newsroom", url:"https://www.apple.com/newsroom/rss-feed.rss", color:"#555555" },
+  { id:"openai", name:"OpenAI News", url:"https://openai.com/news/rss.xml", color:"#10a37f" },
+  { id:"bbc-tech", name:"BBC Technology", url:"https://feeds.bbci.co.uk/news/technology/rss.xml", color:"#bb1919" },
+  { id:"guardian-tech", name:"The Guardian Technology", url:"https://www.theguardian.com/uk/technology/rss", color:"#052962" },
+  { id:"nyt-tech", name:"The New York Times Technology", url:"https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml", color:"#111111" },
+  { id:"npr-tech", name:"NPR Technology", url:"https://feeds.npr.org/1019/rss.xml", color:"#d62021" },
+  { id:"aljazeera", name:"Al Jazeera", url:"https://www.aljazeera.com/xml/rss/all.xml", color:"#d5a44b" },
+  { id:"nasa", name:"NASA", url:"https://www.nasa.gov/feed/", color:"#0b3d91" },
+  { id:"nature", name:"Nature", url:"https://www.nature.com/nature.rss", color:"#e21b22" },
 ];
 
 const seedArticles = [
@@ -17,17 +46,20 @@ const seedArticles = [
 ];
 
 async function ensureSeeded() {
+  await ensureDbSchema();
   const db = getDb();
-  const [result] = await db.select({ value: count() }).from(feeds);
+  await db.insert(feeds).values(seedFeeds).onConflictDoNothing();
+  const [result] = await db.select({ value: count() }).from(articles);
   if (result.value === 0) {
-    await db.insert(feeds).values(seedFeeds);
     await db.insert(articles).values(seedArticles);
   }
   return db;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const unauthorized = await requirePasswordSession(request);
+    if (unauthorized) return unauthorized;
     const db = await ensureSeeded();
     const [feedRows, articleRows] = await Promise.all([
       db.select().from(feeds).orderBy(asc(feeds.createdAt)),
@@ -48,6 +80,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const unauthorized = await requirePasswordSession(request);
+    if (unauthorized) return unauthorized;
     const payload = await request.json() as { url?: string };
     const url = payload.url?.trim();
     if (!url) return Response.json({ error:"url is required" }, { status:400 });

@@ -38,8 +38,8 @@ const initialArticles: Article[] = [
 ];
 
 const copy = {
-  zh: { brand:"观澜", tagline:"观水有术，阅世有度", loginTitle:"欢迎回来", loginLead:"输入访问密码，继续你的安静阅读。", password:"访问密码", passwordPlaceholder:"请输入密码", enter:"进入观澜", wrong:"密码不正确，请重试", demo:"演示密码：guanlan", search:"搜索文章、作者或订阅源", add:"添加订阅", all:"全部文章", unread:"未读文章", starred:"已加星标", feeds:"订阅源", todayRead:"今日阅读", pieces:"篇", space:"你的阅读空间", markAll:"全部标为已读", today:"今天", unreadSuffix:"篇未读", noArticles:"这里暂时没有文章", noArticlesLead:"试试切换分类或清空搜索条件。", readTime:"约 6 分钟阅读", subscribed:"已订阅", quote:"取一瓢清水，也要看见江河的方向。", end:"观澜而知源", select:"选择一篇文章开始阅读", articles:"文章", star:"星标", subscribe:"订阅", modalLead:"扩展你的阅读边界", modalTitle:"添加新的订阅", feedAddress:"RSS / Atom 地址", addTo:"添加到观澜", modalNote:"当前演示版会保存地址；部署后可接入 Worker 抓取服务。", saved:"已保存订阅地址，接入服务端后即可自动抓取", logout:"退出登录", light:"切换亮色主题", dark:"切换暗色主题", language:"Switch to English" },
-  en: { brand:"GUANLAN", tagline:"Read deeply. See clearly.", loginTitle:"Welcome back", loginLead:"Enter your access password to return to quiet reading.", password:"Access password", passwordPlaceholder:"Enter password", enter:"Enter Guanlan", wrong:"Incorrect password. Try again.", demo:"Demo password: guanlan", search:"Search articles, authors, or feeds", add:"Add subscription", all:"All articles", unread:"Unread", starred:"Starred", feeds:"Feeds", todayRead:"Read today", pieces:"items", space:"Your reading space", markAll:"Mark all as read", today:"Today", unreadSuffix:"unread", noArticles:"Nothing here yet", noArticlesLead:"Try another section or clear your search.", readTime:"6 min read", subscribed:"Subscribed", quote:"Take a cup of clear water, and still see where the river flows.", end:"Trace every current to its source", select:"Select an article to start reading", articles:"Articles", star:"Starred", subscribe:"Subscribe", modalLead:"Expand your reading horizon", modalTitle:"Add a new subscription", feedAddress:"RSS / Atom URL", addTo:"Add to Guanlan", modalNote:"The demo saves this address. Connect a Worker to fetch it after deployment.", saved:"Feed address saved. Connect the server to start fetching.", logout:"Sign out", light:"Switch to light theme", dark:"Switch to dark theme", language:"切换至中文" },
+  zh: { brand:"观澜", tagline:"观水有术，阅世有度", loginTitle:"欢迎回来", loginLead:"输入访问密码，继续你的安静阅读。", password:"访问密码", passwordPlaceholder:"请输入密码", enter:"进入观澜", wrong:"密码不正确或服务尚未配置", demo:"密码由站点部署者通过环境变量设置", search:"搜索文章、作者或订阅源", add:"添加订阅", all:"全部文章", unread:"未读文章", starred:"已加星标", feeds:"订阅源", todayRead:"今日阅读", pieces:"篇", space:"你的阅读空间", markAll:"全部标为已读", today:"今天", unreadSuffix:"篇未读", noArticles:"这里暂时没有文章", noArticlesLead:"试试切换分类或清空搜索条件。", readTime:"约 6 分钟阅读", subscribed:"已订阅", quote:"取一瓢清水，也要看见江河的方向。", end:"观澜而知源", select:"选择一篇文章开始阅读", articles:"文章", star:"星标", subscribe:"订阅", modalLead:"扩展你的阅读边界", modalTitle:"添加新的订阅", feedAddress:"RSS / Atom 地址", addTo:"添加到观澜", modalNote:"订阅地址将保存到 Cloudflare D1。", saved:"订阅地址已保存到 D1", logout:"退出登录", light:"切换亮色主题", dark:"切换暗色主题", language:"Switch to English" },
+  en: { brand:"GUANLAN", tagline:"Read deeply. See clearly.", loginTitle:"Welcome back", loginLead:"Enter your access password to return to quiet reading.", password:"Access password", passwordPlaceholder:"Enter password", enter:"Enter Guanlan", wrong:"Incorrect password or the service is not configured", demo:"The password is set by the site owner through an environment variable", search:"Search articles, authors, or feeds", add:"Add subscription", all:"All articles", unread:"Unread", starred:"Starred", feeds:"Feeds", todayRead:"Read today", pieces:"items", space:"Your reading space", markAll:"Mark all as read", today:"Today", unreadSuffix:"unread", noArticles:"Nothing here yet", noArticlesLead:"Try another section or clear your search.", readTime:"6 min read", subscribed:"Subscribed", quote:"Take a cup of clear water, and still see where the river flows.", end:"Trace every current to its source", select:"Select an article to start reading", articles:"Articles", star:"Starred", subscribe:"Subscribe", modalLead:"Expand your reading horizon", modalTitle:"Add a new subscription", feedAddress:"RSS / Atom URL", addTo:"Add to Guanlan", modalNote:"The feed URL will be stored in Cloudflare D1.", saved:"Feed address saved to D1", logout:"Sign out", light:"Switch to light theme", dark:"Switch to dark theme", language:"切换至中文" },
 };
 
 function Logo() {
@@ -68,7 +68,7 @@ export default function Home() {
     const savedTheme = localStorage.getItem("guanlan-theme") as Theme | null;
     if (savedLanguage === "zh" || savedLanguage === "en") setLanguage(savedLanguage);
     if (savedTheme === "light" || savedTheme === "dark") setTheme(savedTheme);
-    setAuthenticated(sessionStorage.getItem("guanlan-auth") === "yes");
+    fetch("/api/auth", { cache:"no-store" }).then((response) => response.json()).then((data: { authenticated?: boolean }) => setAuthenticated(Boolean(data.authenticated))).catch(() => setAuthenticated(false));
   }, []);
 
   useEffect(() => {
@@ -121,20 +121,22 @@ export default function Home() {
     }).catch(() => setNotice(language === "zh" ? "保存失败，请稍后重试" : "Could not save. Please try again."));
   };
 
-  const signIn = (event: React.FormEvent) => {
+  const signIn = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (password === "guanlan") {
-      sessionStorage.setItem("guanlan-auth", "yes");
+    try {
+      const response = await fetch("/api/auth", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ password }) });
+      if (response.ok) {
       setAuthenticated(true);
       setLoginError(false);
       setPassword("");
-    } else {
+      } else setLoginError(true);
+    } catch {
       setLoginError(true);
     }
   };
 
-  const signOut = () => {
-    sessionStorage.removeItem("guanlan-auth");
+  const signOut = async () => {
+    await fetch("/api/auth", { method:"DELETE" }).catch(() => undefined);
     setAuthenticated(false);
   };
 

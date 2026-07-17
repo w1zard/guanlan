@@ -12,7 +12,7 @@
 - RSS / Atom 地址添加
 - 中文与英文界面及示例文章内容
 - 亮色、暗色主题与偏好记忆
-- 密码访问页面和会话内登录状态
+- Worker 服务端密码校验与 HttpOnly 会话 Cookie
 - 响应式桌面、平板和移动端布局
 - D1 持久化订阅源、文章、未读和星标状态
 - Cloudflare Worker 兼容的 ESM 构建产物
@@ -44,11 +44,20 @@ npm install
 npm run dev
 ```
 
-开发服务器启动后，访问终端显示的本地地址。当前演示密码为：
+复制本地变量模板并设置自己的密码。示例文件只有占位符，不包含可用密钥：
 
-```text
-guanlan
+```bash
+cp .dev.vars.example .dev.vars
 ```
+
+编辑 `.dev.vars`：
+
+```dotenv
+GUANLAN_PASSWORD=你自己的访问密码
+GUANLAN_SESSION_SECRET=至少32位的随机字符串
+```
+
+`.dev.vars` 已被 Git 忽略，不能提交。开发服务器启动后，访问终端显示的本地地址并输入你设置的密码。
 
 ### 构建
 
@@ -75,7 +84,13 @@ npm run db:generate
 
 迁移文件会写入 `drizzle/`。请将 schema、迁移和应用代码放在同一次提交中。
 
-首次调用阅读器 API 时，如果数据库为空，会自动写入演示订阅源和文章。用户添加的订阅、未读状态与星标状态随后都以 D1 为准；语言和主题属于设备级偏好，保存在浏览器中。
+首次调用阅读器 API 时会写入精选订阅目录，并在空文章库中加入少量界面示例。用户添加的订阅、未读状态与星标状态随后都以 D1 为准；语言和主题属于设备级偏好，保存在浏览器中。
+
+### 预置 RSS 目录
+
+预置目录覆盖公开提供 RSS 的代表性中文科技媒体、国际科技媒体、开发者社区、公司技术博客、综合新闻与科学媒体，包括：少数派、Solidot、36氪、阮一峰、FT中文网、IT之家、小众软件、V2EX、Ars Technica、WIRED、The Verge、TechCrunch、MIT Technology Review、Engadget、Hacker News、Slashdot、LWN、Daring Fireball、IEEE Spectrum、Cloudflare Blog、GitHub Blog、Mozilla Hacks、Google Blog、Microsoft Blog、Apple Newsroom、OpenAI News、BBC Technology、The Guardian Technology、New York Times Technology、NPR Technology、Al Jazeera、NASA 和 Nature。
+
+这是一份可维护的精选目录，不声称覆盖互联网上“所有”媒体。RSS 地址可能被发布方调整；失效来源应在后续抓取任务中标记并更新。应用每次初始化会以“不覆盖用户数据”的方式补齐新增预置源。
 
 ## API
 
@@ -84,6 +99,9 @@ npm run db:generate
 | `GET` | `/api/reader` | 获取订阅源和文章，空库时初始化示例数据 |
 | `POST` | `/api/reader` | 保存新的 RSS / Atom 地址 |
 | `PATCH` | `/api/reader/articles` | 更新未读、星标状态或全部标为已读 |
+| `GET` | `/api/auth` | 检查密码会话状态 |
+| `POST` | `/api/auth` | 在 Worker 端校验环境变量密码并设置 Cookie |
+| `DELETE` | `/api/auth` | 清除会话 Cookie |
 
 ## 项目结构
 
@@ -102,14 +120,58 @@ worker/index.ts           Cloudflare Worker 入口
 vite.config.ts            Vite、Vinext 和 Cloudflare 配置
 ```
 
-## Cloudflare 部署
+## 通过 Cloudflare 网页部署到 Workers
 
-项目不依赖传统常驻服务器，可以整体运行在 Cloudflare 平台：
+以下步骤适合他人 Fork 后使用，不需要在仓库中写入密码、令牌或数据库 ID。
 
-1. 创建 D1 数据库并将 Worker 的 `DB` 绑定指向它。
-2. 应用 `drizzle/` 中的 SQL 迁移。
-3. 构建并部署 `dist/` 中的 Worker 产物。
-4. 如需自动抓取 RSS，可为 Worker 增加 Cron Trigger；图片归档可按需增加 R2。
+### 1. Fork 仓库
+
+在 GitHub 项目页面点击右上角 **Fork**，选择自己的账户。不要修改或提交 `.dev.vars`、`.env` 等本地秘密文件。
+
+### 2. 连接 GitHub 仓库并直接部署
+
+1. 打开 **Workers & Pages → Create application → Import a repository**。
+2. 授权 GitHub，并选择刚才 Fork 的仓库。
+3. 将 Build command 设置为：
+
+   ```bash
+   npm ci && npm run build
+   ```
+
+4. 将 Deploy command 设置为：
+
+   ```bash
+   npx wrangler deploy --config dist/server/wrangler.json
+   ```
+
+5. 不需要添加数据库 ID、密码或其他构建变量，直接保存并部署。
+
+项目生成的 Wrangler 配置只声明名为 `DB` 的 D1 binding，不包含账户专属资源 ID。Wrangler 4.45 及以上版本会在第一次部署时自动创建 D1 数据库并绑定到 Worker。应用首次成功进入阅读器时，会自动创建表、索引并导入预置 RSS 目录，不需要在网页控制台粘贴 SQL。
+
+### 3. 部署后设置登录密码
+
+第一次部署完成后：
+
+1. 打开新建的 Worker。
+2. 进入 **Settings → Variables and Secrets**。
+3. 添加以下两个变量，并选择加密的 **Secret** 类型：
+
+   | 名称 | 建议 |
+   | --- | --- |
+   | `GUANLAN_PASSWORD` | 自己选择的强密码 |
+   | `GUANLAN_SESSION_SECRET` | 至少 32 位、不可预测的随机字符串 |
+
+4. 保存后重新访问 Worker 地址并输入刚设置的密码。密码只在 Worker 运行时读取，不会进入浏览器包、Git 历史或构建日志。
+
+### 4. 确认自动创建的数据库
+
+在 Worker 的 **Settings → Bindings** 中可以看到自动创建的 `DB` D1 binding。无需复制数据库 ID，也无需把 Cloudflare 账户信息提交回 Fork。
+
+### 5. 日后更新
+
+向 Fork 的默认分支推送代码后，Cloudflare 会自动重新构建并部署。当前基础 schema 会在运行时幂等初始化；未来涉及表结构变更时，仍应生成并应用新的 Drizzle 迁移。
+
+如需自动抓取 RSS，可继续为 Worker 添加 Cron Trigger；图片归档可按需增加 R2。当前版本预置并保存订阅目录，但尚未包含定时抓取解析器。
 
 使用 OpenAI Sites 发布时，平台会根据 `.openai/hosting.json` 创建或复用 D1 资源，并在版本部署时处理迁移。
 
@@ -126,13 +188,9 @@ vite.config.ts            Vite、Vinext 和 Cloudflare 配置
 
 ## 安全说明
 
-当前密码页面用于私有演示，默认密码存在于前端代码中，不能作为公开互联网环境的强认证方案。正式公开部署前，应至少完成以下之一：
+登录密码从 `GUANLAN_PASSWORD` 环境变量读取，仅在 Worker 服务端校验。成功登录后，Worker 签发由 `GUANLAN_SESSION_SECRET` HMAC 签名的 HttpOnly、SameSite Cookie；HTTPS 部署还会自动加上 Secure 属性。会话默认有效期为 7 天。
 
-- 使用 Cloudflare Access 限制访问者
-- 在 Worker 端验证密码哈希并签发 HttpOnly、Secure Cookie
-- 接入平台提供的身份认证
-
-不要提交 `.env`、`.dev.vars`、密码、访问令牌、D1 数据库 ID 或其他密钥。仓库提供的 `.gitignore` 已排除常见敏感文件。
+不要提交 `.env`、`.dev.vars`、密码、会话密钥、访问令牌或其他敏感值。仓库仅提供 `.env.example` 与 `.dev.vars.example` 占位模板。若站点面向多人或公共互联网，建议额外启用 Cloudflare Access、速率限制与登录失败防护。
 
 ## 开发命令
 

@@ -1,9 +1,12 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { articles } from "../../../../db/schema";
+import { requirePasswordSession } from "../../../lib/password-auth";
 
 export async function PATCH(request: Request) {
   try {
+    const unauthorized = await requirePasswordSession(request);
+    if (unauthorized) return unauthorized;
     const payload = await request.json() as { id?: number; unread?: boolean; starred?: boolean; markAllRead?: boolean };
     const db = getDb();
     if (payload.markAllRead) {
