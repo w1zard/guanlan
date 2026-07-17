@@ -2,6 +2,7 @@ import { asc, count, eq } from "drizzle-orm";
 import { ensureDbSchema, getDb } from "../../../db";
 import { appMeta, articles, feeds } from "../../../db/schema";
 import { requirePasswordSession } from "../../lib/password-auth";
+import { isSafeFeedUrl } from "../../lib/rss-content";
 
 const seedFeeds = [
   { id:"sspai", name:"少数派", url:"https://sspai.com/feed", color:"#d9534f" },
@@ -141,7 +142,7 @@ export async function POST(request: Request) {
     if (unauthorized) return unauthorized;
     const payload = await request.json() as { url?: string };
     const url = payload.url?.trim();
-    if (!url) return Response.json({ error:"url is required" }, { status:400 });
+    if (!url || !isSafeFeedUrl(url)) return Response.json({ error:"a public http(s) url is required" }, { status:400 });
     const parsed = new URL(url);
     const db = getDb();
     const id = `feed-${crypto.randomUUID()}`;

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Feed = { id: string; name: string; unread: number; color: string };
+type Feed = { id: string; name: string; unread: number; color: string; url?: string };
 type Article = {
   id: number;
   feedId: string;
@@ -61,6 +61,9 @@ export default function Home() {
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [manageQuery, setManageQuery] = useState("");
+  const [feedDrafts, setFeedDrafts] = useState<Feed[]>([]);
   const t = copy[language];
 
   useEffect(() => {
@@ -109,6 +112,25 @@ export default function Home() {
     void fetch("/api/reader/articles", { method:"PATCH", headers:{ "content-type":"application/json" }, body:JSON.stringify({ markAllRead:true }) });
   };
 
+  const refreshContent = async () => {
+    setNotice(language === "zh" ? "正在获取 RSS 正文…" : "Fetching RSS articles…");
+    try {
+      const feedId = !["inbox", "unread", "starred"].includes(section) ? section : undefined;
+      const response = await fetch("/api/reader/refresh", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ feedId }) });
+      if (!response.ok) throw new Error("refresh failed");
+      const result = await response.json() as { refreshed:number; inserted:number };
+      const readerResponse = await fetch("/api/reader", { cache:"no-store" });
+      if (!readerResponse.ok) throw new Error("reload failed");
+      const data = await readerResponse.json() as { feeds:Array<Feed>; articles:Article[] };
+      if (data.feeds?.length) setFeeds(data.feeds.map((feed) => ({ ...feed, unread:0 })));
+      if (data.articles?.length) setArticles(data.articles);
+      setNotice(language === "zh" ? `已刷新 ${result.refreshed} 个源，新增 ${result.inserted} 篇完整文章` : `Refreshed ${result.refreshed} feeds and added ${result.inserted} full articles`);
+      window.setTimeout(() => setNotice(""), 4000);
+    } catch {
+      setNotice(language === "zh" ? "刷新失败，请稍后重试" : "Refresh failed. Please try again.");
+    }
+  };
+
   const addFeed = (event: React.FormEvent) => {
     event.preventDefault();
     if (!feedUrl.trim()) return;
@@ -143,6 +165,39 @@ export default function Home() {
   const localized = (article: Article) => language === "en" ? article.en : article;
   const feedName = (feed: Feed) => language === "en" ? ({ sspai:"Sspai", solidot:"Solidot", "36kr":"36Kr", ruanyf:"Ruan YiFeng's Blog", ft:"FT Chinese" }[feed.id] ?? feed.name) : feed.name;
 
+  const openFeedManager = () => {
+    setFeedDrafts(feeds.map((feed) => ({ ...feed })));
+    setManageQuery("");
+    setManageOpen(true);
+  };
+
+  const changeFeedDraft = (id: string, field: "name" | "url" | "color", value: string) => {
+    setFeedDrafts((items) => items.map((feed) => feed.id === id ? { ...feed, [field]:value } : feed));
+  };
+
+  const saveFeedDraft = async (draft: Feed) => {
+    try {
+      const response = await fetch("/api/reader/feeds", { method:"PATCH", headers:{ "content-type":"application/json" }, body:JSON.stringify(draft) });
+      if (!response.ok) throw new Error("save failed");
+      const data = await response.json() as { feed:Feed };
+      setFeeds((items) => items.map((feed) => feed.id === draft.id ? { ...feed, ...data.feed } : feed));
+      setNotice(language === "zh" ? `已保存「${draft.name}」` : `Saved “${draft.name}”`);
+      window.setTimeout(() => setNotice(""), 2500);
+    } catch { setNotice(language === "zh" ? "保存失败，请检查名称和 RSS 地址" : "Save failed. Check the name and feed URL."); }
+  };
+
+  const deleteFeed = async (draft: Feed) => {
+    if (!window.confirm(language === "zh" ? `删除「${draft.name}」及其全部文章？` : `Delete “${draft.name}” and all of its articles?`)) return;
+    try {
+      const response = await fetch(`/api/reader/feeds?id=${encodeURIComponent(draft.id)}`, { method:"DELETE" });
+      if (!response.ok) throw new Error("delete failed");
+      setFeeds((items) => items.filter((feed) => feed.id !== draft.id));
+      setFeedDrafts((items) => items.filter((feed) => feed.id !== draft.id));
+      setArticles((items) => items.filter((article) => article.feedId !== draft.id));
+      if (section === draft.id) setSection("inbox");
+    } catch { setNotice(language === "zh" ? "删除失败，请稍后重试" : "Delete failed. Please try again."); }
+  };
+
   if (!authenticated) return (
     <main className="login-page">
       <div className="login-tools">
@@ -171,7 +226,7 @@ export default function Home() {
       <header className="topbar">
         <button className="brand" onClick={() => setSection("inbox")} aria-label={t.all}><Logo /><span>{t.brand}</span></button>
         <label className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} aria-label={t.search} /><kbd>⌘ K</kbd></label>
-        <div className="top-actions"><button className="text-control" onClick={() => setLanguage(language === "zh" ? "en" : "zh")} title={t.language}>{language === "zh" ? "EN" : "中"}</button><button onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={theme === "light" ? t.dark : t.light}>{theme === "light" ? "☾" : "☀"}</button><button className="avatar" onClick={signOut} title={t.logout} aria-label={t.logout}>澜</button></div>
+        <div className="top-actions"><button onClick={refreshContent} title={language === "zh" ? "获取最新 RSS 正文" : "Fetch latest RSS articles"} aria-label={language === "zh" ? "获取最新 RSS 正文" : "Fetch latest RSS articles"}>↻</button><button className="text-control" onClick={() => setLanguage(language === "zh" ? "en" : "zh")} title={t.language}>{language === "zh" ? "EN" : "中"}</button><button onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={theme === "light" ? t.dark : t.light}>{theme === "light" ? "☾" : "☀"}</button><button className="avatar" onClick={signOut} title={t.logout} aria-label={t.logout}>澜</button></div>
       </header>
 
       <div className="workspace">
@@ -182,11 +237,10 @@ export default function Home() {
             <button className={section === "unread" ? "active" : ""} onClick={() => setSection("unread")}><span>◉</span> {t.unread} <b>{unreadCount}</b></button>
             <button className={section === "starred" ? "active" : ""} onClick={() => setSection("starred")}><span>☆</span> {t.starred}</button>
           </nav>
-          <div className="feed-heading"><span>{t.feeds}</span><button aria-label={t.feeds}>•••</button></div>
+          <div className="feed-heading"><span>{t.feeds}</span><button onClick={openFeedManager} aria-label={language === "zh" ? "管理订阅源" : "Manage feeds"}>•••</button></div>
           <nav className="feed-list" aria-label="订阅源">
             {feeds.map((feed) => <button key={feed.id} title={feedName(feed)} className={section === feed.id ? "active" : ""} onClick={() => setSection(feed.id)}><i style={{ background: feed.color }}>{feed.name.slice(0, 1)}</i><span>{feedName(feed)}</span><b>{articles.filter((a) => a.feedId === feed.id && a.unread).length || ""}</b></button>)}
           </nav>
-          <div className="sidebar-footer"><span>{t.todayRead}</span><strong>24 <small>{t.pieces}</small></strong><div><i style={{ width: "68%" }} /></div></div>
         </aside>
 
         <section className={`article-list ${compact ? "compact" : ""}`}>
@@ -223,6 +277,7 @@ export default function Home() {
       <nav className="mobile-nav"><button onClick={() => setSection("inbox")}><span>▣</span>{t.articles}</button><button onClick={() => setSection("unread")}><span>◉</span>{t.unread}</button><button onClick={() => setSection("starred")}><span>☆</span>{t.star}</button><button onClick={() => setAddOpen(true)}><span>＋</span>{t.subscribe}</button></nav>
 
       {addOpen && <div className="modal-backdrop" onMouseDown={() => setAddOpen(false)}><form className="modal" onSubmit={addFeed} onMouseDown={(event) => event.stopPropagation()}><button type="button" className="modal-close" onClick={() => setAddOpen(false)}>×</button><div className="modal-mark"><Logo /></div><p>{t.modalLead}</p><h2>{t.modalTitle}</h2><label>{t.feedAddress}<input autoFocus value={feedUrl} onChange={(event) => setFeedUrl(event.target.value)} placeholder="https://example.com/feed.xml" type="url" required /></label><button className="modal-submit">{t.addTo}</button><small>{t.modalNote}</small></form></div>}
+      {manageOpen && <div className="modal-backdrop" onMouseDown={() => setManageOpen(false)}><section className="feed-manager" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setManageOpen(false)}>×</button><div className="manager-title"><Logo /><div><p>{language === "zh" ? "订阅设置" : "SUBSCRIPTION SETTINGS"}</p><h2>{language === "zh" ? "管理订阅源" : "Manage feeds"}</h2></div></div><input className="manager-search" value={manageQuery} onChange={(event) => setManageQuery(event.target.value)} placeholder={language === "zh" ? "搜索订阅名称或地址" : "Search name or URL"} /><div className="manager-columns"><span>{language === "zh" ? "名称与 RSS 地址" : "Name and RSS URL"}</span><span>{language === "zh" ? "颜色" : "Color"}</span><span /></div><div className="manager-list">{feedDrafts.filter((feed) => `${feed.name}${feed.url ?? ""}`.toLowerCase().includes(manageQuery.toLowerCase())).map((feed) => <div className="manager-row" key={feed.id}><div className="manager-fields"><input value={feed.name} onChange={(event) => changeFeedDraft(feed.id, "name", event.target.value)} aria-label="Feed name" /><input value={feed.url ?? ""} onChange={(event) => changeFeedDraft(feed.id, "url", event.target.value)} aria-label="Feed URL" /></div><input className="color-input" type="color" value={feed.color} onChange={(event) => changeFeedDraft(feed.id, "color", event.target.value)} aria-label="Feed color" /><div className="manager-actions"><button onClick={() => saveFeedDraft(feed)}>{language === "zh" ? "保存" : "Save"}</button><button className="danger" onClick={() => deleteFeed(feed)}>{language === "zh" ? "删除" : "Delete"}</button></div></div>)}</div><footer>{language === "zh" ? `共 ${feedDrafts.length} 个订阅源` : `${feedDrafts.length} feeds`}</footer></section></div>}
       {notice && <div className="toast">✓ {notice}</div>}
     </main>
   );

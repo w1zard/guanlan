@@ -99,6 +99,9 @@ npm run db:generate
 | `GET` | `/api/reader` | 获取订阅源和文章，空库时初始化示例数据 |
 | `POST` | `/api/reader` | 保存新的 RSS / Atom 地址 |
 | `PATCH` | `/api/reader/articles` | 更新未读、星标状态或全部标为已读 |
+| `POST` | `/api/reader/refresh` | 刷新订阅；优先读取 RSS 全文，必要时回源提取文章正文 |
+| `PATCH` | `/api/reader/feeds` | 修改订阅名称、RSS 地址和标识颜色 |
+| `DELETE` | `/api/reader/feeds?id=...` | 删除订阅源及其文章 |
 | `GET` | `/api/auth` | 检查密码会话状态 |
 | `POST` | `/api/auth` | 在 Worker 端校验环境变量密码并设置 Cookie |
 | `DELETE` | `/api/auth` | 清除会话 Cookie |
@@ -171,7 +174,7 @@ vite.config.ts            Vite、Vinext 和 Cloudflare 配置
 
 向 Fork 的默认分支推送代码后，Cloudflare 会自动重新构建并部署。当前基础 schema 会在运行时幂等初始化；未来涉及表结构变更时，仍应生成并应用新的 Drizzle 迁移。
 
-如需自动抓取 RSS，可继续为 Worker 添加 Cron Trigger；图片归档可按需增加 R2。当前版本预置并保存订阅目录，但尚未包含定时抓取解析器。
+顶部刷新按钮会主动抓取 RSS。RSS 提供 `content:encoded` 或 Atom `content` 时直接保存全文；仅提供摘要时，Worker 会访问原文并从 `article`、`main` 或常见正文容器提取文本。后续还可以为同一刷新端点增加 Cron Trigger；图片归档可按需增加 R2。
 
 使用 OpenAI Sites 发布时，平台会根据 `.openai/hosting.json` 创建或复用 D1 资源，并在版本部署时处理迁移。
 
