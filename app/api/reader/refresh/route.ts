@@ -3,8 +3,7 @@ import { ensureDbSchema, getDb } from "../../../../db";
 import { articles, feeds } from "../../../../db/schema";
 import { requirePasswordSession } from "../../../lib/password-auth";
 import { fetchArticleText, isSafeFeedUrl, parseFeed } from "../../../lib/rss-content";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-
+import { env } from "cloudflare:workers";
 
 const MAX_FEEDS_PER_REFRESH = 8;
 const MAX_ITEMS_PER_FEED = 4;
@@ -13,7 +12,7 @@ export async function POST(request: Request) {
   try {
  
     const cronSecret = (
-      getCloudflareContext().env as { CRON_SECRET?: string }
+      env as unknown as { CRON_SECRET?: string }
     ).CRON_SECRET;
 
     const isCron =

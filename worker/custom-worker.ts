@@ -1,11 +1,13 @@
-import handler from "vinext/server/app-router-entry";
+import handler from "vinext/server/fetch-handler";
 
 type Env = CloudflareEnv & {
   CRON_SECRET: string;
 };
 
 export default {
-  fetch: handler.fetch,
+  fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    return handler.fetch(request, env, ctx);
+  },
 
   async scheduled(
     controller: ScheduledController,
@@ -29,10 +31,10 @@ export default {
 
     if (!response.ok) {
       throw new Error(
-        `RSS scheduled refresh failed: ${response.status} ${body}`,
+        `RSS refresh failed: ${response.status} ${body}`,
       );
     }
 
-    console.log("RSS scheduled refresh completed:", body);
+    console.log("RSS refresh completed:", body);
   },
 } satisfies ExportedHandler<Env>;
