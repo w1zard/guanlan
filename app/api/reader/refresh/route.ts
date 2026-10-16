@@ -3,14 +3,28 @@ import { ensureDbSchema, getDb } from "../../../../db";
 import { articles, feeds } from "../../../../db/schema";
 import { requirePasswordSession } from "../../../lib/password-auth";
 import { fetchArticleText, isSafeFeedUrl, parseFeed } from "../../../lib/rss-content";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
 
 const MAX_FEEDS_PER_REFRESH = 8;
 const MAX_ITEMS_PER_FEED = 4;
 
 export async function POST(request: Request) {
   try {
-    const unauthorized = await requirePasswordSession(request);
-    if (unauthorized) return unauthorized;
+ 
+    const cronSecret = (
+      getCloudflareContext().env as { CRON_SECRET?: string }
+    ).CRON_SECRET;
+
+    const isCron =
+      !!cronSecret &&
+      request.headers.get("x-cron-secret") === cronSecret;
+
+    if (!isCron) {
+      const unauthorized = await requirePasswordSession(request);
+      if (unauthorized) return unauthorized;
+    }
+
     await ensureDbSchema();
     const payload = await request.json().catch(() => ({})) as { feedId?: string };
     const db = getDb();
