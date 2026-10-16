@@ -43,44 +43,46 @@ const worker = {
 
     return handler.fetch(request, env, ctx);
   },
+
+  async scheduled(
+    controller: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<void> {
+    if (!env.CRON_SECRET) {
+      throw new Error("CRON_SECRET is not configured");
+    }
+
+    console.log("RSS scheduled refresh started:", {
+      cron: controller.cron,
+      scheduledTime: new Date(controller.scheduledTime).toISOString(),
+    });
+
+    const request = new Request(
+      "https://internal/api/reader/refresh",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-cron-secret": env.CRON_SECRET,
+        },
+        body: "{}",
+      },
+    );
+
+    const response = await handler.fetch(request, env, ctx);
+    const body = await response.text();
+
+    if (!response.ok) {
+      throw new Error(
+        `RSS scheduled refresh failed: ${response.status} ${body}`,
+      );
+    }
+
+    console.log("RSS refresh completed:", body);
+  },
 };
 
-async scheduled(
-  controller: ScheduledController,
-  env: Env,
-  ctx: ExecutionContext,
-): Promise<void> {
-  if (!env.CRON_SECRET) {
-    throw new Error("CRON_SECRET is not configured");
-  }
 
-  console.log("RSS scheduled refresh started:", {
-    cron: controller.cron,
-    scheduledTime: new Date(controller.scheduledTime).toISOString(),
-  });
-
-  const request = new Request(
-    "https://internal/api/reader/refresh",
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-cron-secret": env.CRON_SECRET,
-      },
-      body: "{}",
-    },
-  );
-
-  const response = await handler.fetch(request, env, ctx);
-  const body = await response.text();
-
-  if (!response.ok) {
-    throw new Error(
-      `RSS scheduled refresh failed: ${response.status} ${body}`,
-    );
-  }
-
-  console.log("RSS refresh completed:", body);
-},
 
 export default worker;
