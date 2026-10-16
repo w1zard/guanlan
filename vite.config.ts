@@ -11,6 +11,11 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
+
+  triggers: {
+    crons: ["*/5 * * * *"],
+  },
+  
   d1_databases: d1
     ? process.env.CLOUDFLARE_D1_DATABASE_ID
       ? [{ binding: d1, database_name: process.env.CLOUDFLARE_D1_DATABASE_NAME ?? "guanlan-db", database_id: process.env.CLOUDFLARE_D1_DATABASE_ID }]
